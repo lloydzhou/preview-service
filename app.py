@@ -1,5 +1,6 @@
 import os
 import hashlib
+import logging
 
 import uvicorn
 
@@ -51,6 +52,7 @@ async def health_endpoint(request):
 async def preview_endpoint(request):
     width = request.path_params["width"]
     height = request.path_params["height"]
+    page = int(request.query_params.get("page", -1))
 
     form = await request.form()
     file = form.get("file", None)
@@ -62,7 +64,23 @@ async def preview_endpoint(request):
     file_path = await _store_uploaded_file(file)
 
     try:
-        image = manager.get_jpeg_preview(file_path, width=width, height=height)
+        image = manager.get_jpeg_preview(file_path, width=width, height=height, page=page)
+    except Exception as e:
+        logging.exception(e)
+        return error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    return FileResponse(image)
+
+
+@app.route("/preview/{width:int}x{height:int}/{file_path}", methods=["GET"])
+async def preview_endpoint(request):
+    width = request.path_params["width"]
+    height = request.path_params["height"]
+    file_path = request.path_params["file_path"]
+    page = request.query_params.get("page", -1)
+
+    try:
+        image = manager.get_jpeg_preview(file_path, width=width, height=height, page=page)
     except Exception as e:
         return error_response(str(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
 
